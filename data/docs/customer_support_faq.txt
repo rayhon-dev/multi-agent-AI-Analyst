@@ -1,0 +1,24 @@
+Northwind Analytics — Customer Support FAQ
+
+Q: What is your refund policy?
+A: Customers on monthly plans can cancel at any time and are not billed for
+the following month. We do not offer partial refunds for the current billing
+period. Annual plans can be refunded on a pro-rated basis within the first 60
+days.
+
+Q: Why do customers most commonly cancel their subscription?
+A: Based on exit surveys collected by the support team, the most common
+reasons customers churn are: (1) the dashboard did not integrate with their
+e-commerce platform, (2) the price was too high relative to their order
+volume, (3) they hired an in-house analyst and no longer needed the tool, and
+(4) low usage — teams that log in less than once a month are the most likely
+to cancel within a quarter.
+
+Q: How do I export my data before canceling?
+A: Go to Settings > Data Export. Exports are available in CSV format and
+include the last 24 months of processed data. Exports are not available after
+an account has been fully deleted.
+
+Q: Is there a free trial?
+A: Yes, all new signups get a 14-day free trial of the Growth tier with no
+credit card required.

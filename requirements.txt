@@ -1,0 +1,37 @@
+# Core orchestration
+langgraph
+langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+
+# LLM + embeddings (Gemini, via OpenAI-compatible proxy)
+langchain-openai
+
+# Vector store (Qdrant embedded)
+qdrant-client
+langchain-qdrant
+
+# Web search
+tavily-python
+
+# Database / text-to-SQL
+sqlalchemy
+
+# Code agent sandbox
+langchain-experimental
+
+# Evaluation
+ragas
+datasets
+
+# Observability
+langfuse
+
+# Frontend/backend serving
+fastapi
+uvicorn
+
+# Utilities
+python-dotenv
+pydantic

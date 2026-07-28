@@ -1,0 +1,20 @@
+Northwind Analytics — Company Overview
+
+Northwind Analytics is a B2B SaaS company founded in 2019 that helps mid-sized
+e-commerce businesses understand their customer data. The core product is a
+dashboard that connects to a merchant's order history and produces reports on
+revenue, customer retention, and churn risk.
+
+The company has three pricing tiers: Starter ($49/month), Growth ($199/month),
+and Enterprise (custom pricing). Starter includes basic dashboards. Growth
+adds cohort analysis and churn prediction. Enterprise adds a dedicated account
+manager, custom integrations, and a service-level agreement (SLA) of 99.9%
+uptime.
+
+Northwind's mission is to make customer analytics accessible to businesses
+that cannot afford a full in-house data team. As of the most recent fiscal
+year, the company serves just over 1,200 paying customers, primarily in North
+America and Western Europe.
+
+The company is headquartered in Austin, Texas, with a remote engineering team
+distributed across four time zones.

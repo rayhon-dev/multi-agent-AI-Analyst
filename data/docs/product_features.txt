@@ -1,0 +1,23 @@
+Northwind Analytics — Product Features
+
+Dashboards: Pre-built views for revenue trend, new vs. returning customers,
+and average order value, refreshed daily from connected store data.
+
+Churn Prediction: A machine learning model scores each customer on a 0-100
+churn risk scale based on recency of purchase, order frequency, and support
+ticket volume. Available on Growth and Enterprise tiers.
+
+Cohort Analysis: Groups customers by signup month and tracks retention across
+subsequent months, so a team can see whether a specific onboarding campaign
+improved long-term retention.
+
+Integrations: Native connectors for Shopify, WooCommerce, and BigCommerce.
+Enterprise customers can request a custom API integration for platforms not
+natively supported.
+
+Alerts: Configurable email or Slack alerts when a customer's churn risk score
+crosses a threshold, or when weekly revenue drops more than 15% versus the
+prior week.
+
+Data Retention: Raw event data is retained for 24 months. Aggregated reports
+are retained indefinitely unless the account is deleted.
