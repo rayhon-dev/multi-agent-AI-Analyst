@@ -10,6 +10,11 @@ _llm = ChatOpenAI(model=LLM_MODEL_FLASH, api_key=GEMINI_API_KEY, base_url=PROXY_
 
 
 class Route(BaseModel):
+    resolved_question: str = Field(
+        description="If the question depends on an earlier turn (e.g. 'and last year?', "
+        "a pronoun, or an implicit comparison), rewrite it as a fully self-contained "
+        "question using the past turns provided. Otherwise copy the question unchanged."
+    )
     next: Literal["retriever", "web", "data", "code", "finish"] = Field(
         description="Which specialist should run next, or 'finish' once enough evidence has "
         "been gathered to answer the question."
@@ -20,8 +25,11 @@ _structured_llm = _llm.with_structured_output(Route)
 
 
 def supervisor(state: AgentState) -> dict:
+    is_first_call = len(state["steps"]) == 0
+
     prompt = (
         f"Question: {state['question']}\n"
+        f"Relevant past Q&A turns (may be empty): {state['memory']}\n"
         f"Steps taken so far: {state['steps']}\n"
         f"Documents collected: {len(state['documents'])}\n"
         f"SQL result so far: {state['sql_result']}\n"
@@ -51,7 +59,13 @@ def supervisor(state: AgentState) -> dict:
     if next_agent != "finish" and already_ran:
         next_agent = "finish"
 
-    return {
+    updates = {
         "plan": next_agent,
         "steps": state["steps"] + [f"supervisor→{next_agent}"],
     }
+    # Only rewrite the question once, at the start of a run — every later
+    # supervisor call in the same run should keep operating on that same
+    # resolved question rather than risk it drifting turn to turn.
+    if is_first_call:
+        updates["question"] = route.resolved_question
+    return updates

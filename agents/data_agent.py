@@ -19,8 +19,12 @@ def _strip_fences(text: str) -> str:
 def data_agent(state: AgentState) -> dict:
     prompt = (
         f"You are a SQLite expert. Schema:\n{_db.get_table_info()}\n\n"
+        f"Relevant past Q&A turns (may be empty): {state['memory']}\n\n"
         "Write ONE read-only SQLite SELECT query that answers this question:\n"
         f"{state['question']}\n\n"
+        "If the question depends on a past turn above (e.g. 'and last year?' refers back "
+        "to a metric and time period asked about earlier), resolve that dependency yourself "
+        "before writing the query.\n\n"
         "Rules:\n"
         "- Only select real columns from the schema above. Never invent, hardcode, or fabricate "
         "a string literal to stand in for data that isn't actually stored in a column.\n"

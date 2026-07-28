@@ -7,6 +7,7 @@ from agents.generate import generate_agent
 from agents.retriever import retriever_agent
 from agents.supervisor import supervisor
 from agents.web import web_agent
+from memory import recall_agent, remember_agent
 from state import AgentState
 
 MAX_REVISIONS = 2
@@ -22,7 +23,7 @@ def route_after_critic(state: AgentState) -> str:
     return "finish" if state["steps"][-1].startswith("critic→approved") else "revise"
 
 
-def build_graph():
+def build_graph(critic_fn=critic, use_memory: bool = True):
     g = StateGraph(AgentState)
 
     g.add_node("supervisor", supervisor)
@@ -31,9 +32,15 @@ def build_graph():
     g.add_node("data", data_agent)
     g.add_node("code", code_agent)
     g.add_node("generate", generate_agent)
-    g.add_node("critic", critic)
+    g.add_node("critic", critic_fn)
 
-    g.set_entry_point("supervisor")
+    if use_memory:
+        g.add_node("recall", recall_agent)
+        g.add_node("remember", remember_agent)
+        g.set_entry_point("recall")
+        g.add_edge("recall", "supervisor")
+    else:
+        g.set_entry_point("supervisor")
 
     g.add_conditional_edges(
         "supervisor",
@@ -52,7 +59,11 @@ def build_graph():
 
     g.add_edge("generate", "critic")
 
-    g.add_conditional_edges("critic", route_after_critic, {"finish": END, "revise": "supervisor"})
+    if use_memory:
+        g.add_conditional_edges("critic", route_after_critic, {"finish": "remember", "revise": "supervisor"})
+        g.add_edge("remember", END)
+    else:
+        g.add_conditional_edges("critic", route_after_critic, {"finish": END, "revise": "supervisor"})
 
     return g.compile()
 

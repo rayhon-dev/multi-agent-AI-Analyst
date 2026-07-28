@@ -44,7 +44,11 @@ def _run_sandboxed(code: str, timeout: int = TIMEOUT_SECONDS) -> str:
 
 def code_agent(state: AgentState) -> dict:
     prompt = (
+        f"Relevant past Q&A turns (may be empty): {state['memory']}\n\n"
         f"Write Python code that answers this question:\n{state['question']}\n\n"
+        "If the question depends on a past turn above (e.g. 'and last year?' refers back "
+        "to a metric and time period asked about earlier), resolve that dependency yourself "
+        "before writing the code.\n\n"
         "The code must end by calling print() on the final computed answer. "
         "Return Python code only, no explanation, no markdown fences."
     )

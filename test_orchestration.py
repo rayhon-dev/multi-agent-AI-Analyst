@@ -10,6 +10,7 @@ BASE_STATE = {
     "answer": "",
     "steps": [],
     "revisions": 0,
+    "memory": [],
 }
 
 DATA_QUESTION_STATE = {**BASE_STATE, "question": "How many customers have churned in total?"}

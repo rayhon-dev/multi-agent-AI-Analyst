@@ -15,6 +15,7 @@ def build_initial_state(question: str) -> dict:
         "answer": "",
         "steps": [],
         "revisions": 0,
+        "memory": [],
     }
 
 

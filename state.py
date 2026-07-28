@@ -10,3 +10,4 @@ class AgentState(TypedDict):
     answer: str
     steps: List[str]
     revisions: int
+    memory: List[str]

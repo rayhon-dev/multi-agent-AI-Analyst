@@ -12,6 +12,7 @@ FAKE_STATE = {
     "answer": "",
     "steps": [],
     "revisions": 0,
+    "memory": [],
 }
 
 DATA_STATE = {**FAKE_STATE, "question": "How many customers have churned in total?"}
