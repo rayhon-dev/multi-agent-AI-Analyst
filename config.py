@@ -7,6 +7,10 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
+LANGFUSE_PUBLIC_KEY = os.getenv("LANGFUSE_PUBLIC_KEY")
+LANGFUSE_SECRET_KEY = os.getenv("LANGFUSE_SECRET_KEY")
+LANGFUSE_HOST = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
 # All Gemini calls are routed through an OpenAI/Gemini-compatible proxy
 # instead of calling Google directly.
 PROXY_BASE_URL = "https://saidazam-litellm-proxy.hf.space/v1"

@@ -1,6 +1,7 @@
 import sys
 
 from graph import graph
+from observability import get_callbacks
 
 RECURSION_LIMIT = 15
 
@@ -27,7 +28,8 @@ def main():
     question = sys.argv[1]
     initial_state = build_initial_state(question)
 
-    final_state = graph.invoke(initial_state, config={"recursion_limit": RECURSION_LIMIT})
+    config = {"recursion_limit": RECURSION_LIMIT, "callbacks": get_callbacks()}
+    final_state = graph.invoke(initial_state, config=config)
 
     print("=== Steps ===")
     for step in final_state["steps"]:
