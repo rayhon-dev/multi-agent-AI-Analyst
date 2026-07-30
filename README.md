@@ -14,7 +14,8 @@ Multi-Agent AI Analyst capstone (Phases 1–5).
 - **Web search**: Tavily (optional — skips gracefully without a key)
 - **Observability**: Langfuse (optional — no-ops cleanly without keys)
 - **Orchestration**: LangGraph
-- **Frontend**: Gradio `ChatInterface`, deployable via Colab (`share=True`)
+- **Frontend**: Gradio `ChatInterface`, deployed on Render — live at
+  [multi-agent-ai-analyst-fhpo.onrender.com](https://multi-agent-ai-analyst-fhpo.onrender.com)
 
 ## Architecture
 
@@ -71,8 +72,17 @@ python main.py "How many customers churned in 2024, and what does the FAQ say ab
 python app.py                 # local Gradio UI
 ```
 
-See the project guide for the exact Google Colab cells to run `app.py` with
-`demo.launch(share=True)` for a public link.
+## Deployment
+
+Live on Render: **https://multi-agent-ai-analyst-fhpo.onrender.com**
+
+Deployed via `render.yaml` (Blueprint): build runs `pip install -r requirements.txt` then
+regenerates the gitignored `data/company.db` and `qdrant_storage/` with `seed_db.py`/`ingest.py`;
+start runs `python app.py`, which binds to `0.0.0.0` on Render's assigned `$PORT` (falls back to
+`7860` for local runs). The four secret keys (`GEMINI_API_KEY`, `TAVILY_API_KEY`,
+`LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`) are set as Render environment variables, never
+committed. Render's free tier spins the service down after inactivity, so the first request after
+a while can take ~30–60s to cold-start.
 
 ## Evaluation results
 
@@ -83,17 +93,20 @@ custom LLM-judge (1–5 vs. a reference answer).
 
 | Condition | Avg LLM-judge | Faithfulness | Answer relevancy | Context precision |
 |---|---|---|---|---|
-| **With critic** | 4.60 / 5 | 0.667 | 0.880 | 0.857 |
-| **Without critic** | 4.60 / 5 | 0.667 | 0.881 | 0.833 |
+| **With critic** | 5.00 / 5 | 0.500 | 0.986 | 1.000 |
+| **Without critic** | 5.00 / 5 | 0.667 | 0.976 | 1.000 |
 
-**Reading these honestly**: 9/10 test questions were already correct on the first pass, so
-critic-on vs. critic-off barely differ on this set — that's expected, since these are mostly
-atomic, single-agent questions. The critic's real demonstrated value shows up on harder,
-multi-part questions (see error analysis below), not on this benchmark. The one low score in both
-runs (question 10, "What is LangGraph used for?") is the web-agent question — `TAVILY_API_KEY`
-isn't configured in this environment, so `web_agent` skips gracefully and `generate_agent`
-correctly declines to guess rather than hallucinate, which scores low against a reference answer
-but is the intended graceful-degradation behavior, not a bug.
+**Reading these honestly**: with `TAVILY_API_KEY` now configured, all 10/10 questions score 5/5 on
+the LLM-judge in both conditions — question 10 ("What is LangGraph used for?"), previously the one
+low score because `web_agent` was gracefully skipping without a key, now retrieves real content via
+live Tavily search and answers it correctly. Critic-on vs. critic-off still barely differ on this
+set — expected, since these are mostly atomic, single-agent questions; the critic's real
+demonstrated value shows up on harder, multi-part questions (see error analysis below), not on this
+benchmark. One number moved counter-intuitively — faithfulness is *lower* with the critic (0.500)
+than without (0.667) — but that's noise, not a regression: the proxy's `gemini-flash-lite` rejects
+RAGAS's default multi-candidate sampling (`Multiple candidates is not enabled for this model`), so
+several per-question RAGAS jobs failed and were dropped from the average on both runs, on an already
+small 10-question sample.
 
 ## Error analysis
 
@@ -146,16 +159,21 @@ the same follow-up now correctly resolves to "churned in 2023" and returns the r
 - [x] Long-term memory recalls an earlier turn (see error analysis #3 for the fix that made this
       actually work)
 - [x] Evaluation: RAGAS + LLM-judge over 10 questions, with vs. without critic, reported above
-- [x] Langfuse tracing wired (add your own trace screenshot once keys are configured)
-- [x] Frontend (Gradio) deployed via Colab `share=True`
+- [x] Langfuse tracing wired and authenticated (`LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` verified
+      via `client.auth_check()`)
+- [x] Frontend (Gradio) deployed on Render:
+      [multi-agent-ai-analyst-fhpo.onrender.com](https://multi-agent-ai-analyst-fhpo.onrender.com)
 - [ ] Add your own screenshots: frontend live trace, Langfuse trace — not something I can capture
       on your behalf
 
 ## Known limitations
 
-- `TAVILY_API_KEY` is not configured in this build, so the web agent's graceful-skip path is
-  exercised rather than live search; add a key to test it fully.
 - The proxy key in use restricts model access to `gemini-flash-lite`/`gemini-embedding` only, so
   the supervisor and critic run on the same lite model as the specialists rather than a stronger
   model — the code-level routing guard (error analysis #2) exists specifically to compensate for
   this.
+- The same proxied model rejects RAGAS's default multi-candidate sampling
+  (`Multiple candidates is not enabled for this model`), causing some per-question RAGAS jobs to
+  fail and get excluded from the averages above — see the eval results note.
+- Render's free tier spins the service down after inactivity; the first request after idle time can
+  take ~30–60s to cold-start.
