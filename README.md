@@ -14,8 +14,13 @@ Multi-Agent AI Analyst capstone (Phases 1–5).
 - **Web search**: Tavily (optional — skips gracefully without a key)
 - **Observability**: Langfuse (optional — no-ops cleanly without keys)
 - **Orchestration**: LangGraph
-- **Frontend**: Gradio `ChatInterface`, deployed on Render — live at
+- **Backend API**: FastAPI (`api.py`), streaming the graph's steps + answer as newline-delimited
+  JSON, deployed on Render — live at
   [multi-agent-ai-analyst-fhpo.onrender.com](https://multi-agent-ai-analyst-fhpo.onrender.com)
+- **Frontend**: Next.js + Tailwind (`frontend/`), a custom chat UI with a live color-coded agent
+  trace panel, deployed on Vercel
+- *(local-only alternative)*: `app.py` is a Gradio `ChatInterface` for quick local testing without
+  the Next.js frontend; it's no longer what's deployed on Render
 
 ## Architecture
 
@@ -69,20 +74,34 @@ python ingest.py
 
 ```bash
 python main.py "How many customers churned in 2024, and what does the FAQ say about why?"
-python app.py                 # local Gradio UI
+python api.py                  # backend API on :8000 (what the Next.js frontend calls)
+python app.py                  # local Gradio UI (standalone alternative, no separate frontend needed)
+```
+
+To run the Next.js frontend locally against the API:
+
+```bash
+cd frontend
+npm install
+npm run dev                    # http://localhost:3000, calls NEXT_PUBLIC_API_URL (.env.local)
 ```
 
 ## Deployment
 
-Live on Render: **https://multi-agent-ai-analyst-fhpo.onrender.com**
+**Backend** — live on Render: **https://multi-agent-ai-analyst-fhpo.onrender.com**
 
 Deployed via `render.yaml` (Blueprint): build runs `pip install -r requirements.txt` then
 regenerates the gitignored `data/company.db` and `qdrant_storage/` with `seed_db.py`/`ingest.py`;
-start runs `python app.py`, which binds to `0.0.0.0` on Render's assigned `$PORT` (falls back to
-`7860` for local runs). The four secret keys (`GEMINI_API_KEY`, `TAVILY_API_KEY`,
-`LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`) are set as Render environment variables, never
-committed. Render's free tier spins the service down after inactivity, so the first request after
-a while can take ~30–60s to cold-start.
+start runs `python api.py`, a FastAPI app binding to `0.0.0.0` on Render's assigned `$PORT`
+(`GET /api/health`, `POST /api/chat` streaming ND-JSON). The four secret keys (`GEMINI_API_KEY`,
+`TAVILY_API_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY`) are set as Render environment
+variables, never committed. Render's free tier spins the service down after inactivity, so the
+first request after a while can take ~30–60s to cold-start.
+
+**Frontend** — deployed on Vercel from the `frontend/` subdirectory (set Vercel's *Root Directory*
+project setting to `frontend`; zero other config needed, Next.js is auto-detected). Set one
+environment variable in the Vercel project: `NEXT_PUBLIC_API_URL` = the Render backend URL above.
+CORS on the backend is open (`allow_origins=["*"]`) so the Vercel domain can call it directly.
 
 ## Evaluation results
 
@@ -161,8 +180,10 @@ the same follow-up now correctly resolves to "churned in 2023" and returns the r
 - [x] Evaluation: RAGAS + LLM-judge over 10 questions, with vs. without critic, reported above
 - [x] Langfuse tracing wired and authenticated (`LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY` verified
       via `client.auth_check()`)
-- [x] Frontend (Gradio) deployed on Render:
+- [x] Backend API (FastAPI) deployed on Render:
       [multi-agent-ai-analyst-fhpo.onrender.com](https://multi-agent-ai-analyst-fhpo.onrender.com)
+- [ ] Frontend (Next.js) deployed on Vercel — pushed and ready to deploy, add your live Vercel URL
+      here once it's up
 - [ ] Add your own screenshots: frontend live trace, Langfuse trace — not something I can capture
       on your behalf
 
@@ -177,3 +198,10 @@ the same follow-up now correctly resolves to "churned in 2023" and returns the r
   fail and get excluded from the averages above — see the eval results note.
 - Render's free tier spins the service down after inactivity; the first request after idle time can
   take ~30–60s to cold-start.
+- `recall_agent`'s similarity search has no relevance threshold — once the memory collection has a
+  few entries, a small store can return its closest matches even when none are actually relevant to
+  the new question. Observed live: "What is the sum of the first 100 positive integers?" recalled 3
+  unrelated past turns, and the supervisor (again, the weak proxied model) treated that noise as
+  sufficient evidence and jumped straight to `finish` without ever calling `code`, so the answer
+  wrongly declined instead of computing 5050. Not yet fixed — a similarity-score cutoff on
+  `retrieve_past_turns` in `memory.py` would be the direct fix.
