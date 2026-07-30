@@ -18,7 +18,8 @@ Multi-Agent AI Analyst capstone (Phases 1–5).
   JSON, deployed on Render — live at
   [multi-agent-ai-analyst-fhpo.onrender.com](https://multi-agent-ai-analyst-fhpo.onrender.com)
 - **Frontend**: Next.js + Tailwind (`frontend/`), a custom chat UI with a live color-coded agent
-  trace panel, deployed on Vercel
+  trace panel, deployed on Vercel — live at
+  [multi-agent-ai-analyst-sigma.vercel.app](https://multi-agent-ai-analyst-sigma.vercel.app)
 - *(local-only alternative)*: `app.py` is a Gradio `ChatInterface` for quick local testing without
   the Next.js frontend; it's no longer what's deployed on Render
 
@@ -98,10 +99,12 @@ start runs `python api.py`, a FastAPI app binding to `0.0.0.0` on Render's assig
 variables, never committed. Render's free tier spins the service down after inactivity, so the
 first request after a while can take ~30–60s to cold-start.
 
-**Frontend** — deployed on Vercel from the `frontend/` subdirectory (set Vercel's *Root Directory*
-project setting to `frontend`; zero other config needed, Next.js is auto-detected). Set one
-environment variable in the Vercel project: `NEXT_PUBLIC_API_URL` = the Render backend URL above.
-CORS on the backend is open (`allow_origins=["*"]`) so the Vercel domain can call it directly.
+**Frontend** — live on Vercel: **https://multi-agent-ai-analyst-sigma.vercel.app**
+
+Deployed from the `frontend/` subdirectory (Vercel's *Root Directory* project setting is set to
+`frontend`; zero other config needed, Next.js is auto-detected). One environment variable is set in
+the Vercel project: `NEXT_PUBLIC_API_URL` = the Render backend URL above. CORS on the backend is
+open (`allow_origins=["*"]`) so the Vercel domain can call it directly.
 
 ## Evaluation results
 
@@ -182,8 +185,8 @@ the same follow-up now correctly resolves to "churned in 2023" and returns the r
       via `client.auth_check()`)
 - [x] Backend API (FastAPI) deployed on Render:
       [multi-agent-ai-analyst-fhpo.onrender.com](https://multi-agent-ai-analyst-fhpo.onrender.com)
-- [ ] Frontend (Next.js) deployed on Vercel — pushed and ready to deploy, add your live Vercel URL
-      here once it's up
+- [x] Frontend (Next.js) deployed on Vercel:
+      [multi-agent-ai-analyst-sigma.vercel.app](https://multi-agent-ai-analyst-sigma.vercel.app)
 - [ ] Add your own screenshots: frontend live trace, Langfuse trace — not something I can capture
       on your behalf
 
