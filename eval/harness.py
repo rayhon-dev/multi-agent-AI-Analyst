@@ -19,7 +19,8 @@ from pydantic import BaseModel, Field
 from ragas import evaluate
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.llms import LangchainLLMWrapper
-from ragas.metrics import answer_relevancy, context_precision, faithfulness
+from ragas.metrics import AnswerRelevancy, context_precision, faithfulness
+from ragas.run_config import RunConfig
 
 from config import EMBEDDING_MODEL, GEMINI_API_KEY, LLM_MODEL_LITE, PROXY_BASE_URL
 from graph import build_graph
@@ -142,6 +143,16 @@ _ragas_embeddings = LangchainEmbeddingsWrapper(
     OpenAIEmbeddings(model=EMBEDDING_MODEL, api_key=GEMINI_API_KEY, base_url=PROXY_BASE_URL)
 )
 
+# strictness=1 (default 3) asks the proxied model for a single question-generation
+# completion instead of 3 in one call — the proxy rejects multi-candidate sampling
+# ("Multiple candidates is not enabled for this model"), which otherwise fails this
+# metric's jobs and silently drops them from the average.
+_answer_relevancy = AnswerRelevancy(strictness=1)
+
+# Lower max_workers than the ragas default (16) to avoid overwhelming the shared/free
+# proxy, which was also throwing TimeoutErrors under concurrent load.
+_ragas_run_config = RunConfig(max_workers=4)
+
 
 def run_ragas(records: list):
     dataset = Dataset.from_dict(
@@ -154,9 +165,10 @@ def run_ragas(records: list):
     )
     return evaluate(
         dataset,
-        metrics=[faithfulness, answer_relevancy, context_precision],
+        metrics=[faithfulness, _answer_relevancy, context_precision],
         llm=_ragas_llm,
         embeddings=_ragas_embeddings,
+        run_config=_ragas_run_config,
     )
 
 
