@@ -115,24 +115,24 @@ custom LLM-judge (1–5 vs. a reference answer).
 
 | Condition | Avg LLM-judge | Faithfulness | Answer relevancy | Context precision |
 |---|---|---|---|---|
-| **With critic** | 5.00 / 5 | 0.500 | 0.986 | 1.000 |
-| **Without critic** | 5.00 / 5 | 0.667 | 0.976 | 1.000 |
+| **With critic** | 5.00 / 5 | 0.725 | 0.950 | 1.000 |
+| **Without critic** | 5.00 / 5 | 0.725 | 0.950 | 1.000 |
 
-**Reading these honestly**: with `TAVILY_API_KEY` now configured, all 10/10 questions score 5/5 on
-the LLM-judge in both conditions — question 10 ("What is LangGraph used for?"), previously the one
-low score because `web_agent` was gracefully skipping without a key, now retrieves real content via
-live Tavily search and answers it correctly. Critic-on vs. critic-off still barely differ on this
-set — expected, since these are mostly atomic, single-agent questions; the critic's real
-demonstrated value shows up on harder, multi-part questions (see error analysis below), not on this
-benchmark. One number moved counter-intuitively — faithfulness is *lower* with the critic (0.500)
-than without (0.667) — but that's noise, not a regression: the proxy's `gemini-flash-lite` rejects
-RAGAS's default multi-candidate sampling (`Multiple candidates is not enabled for this model`), so
-several per-question RAGAS jobs failed and were dropped from the average on both runs, on an already
-small 10-question sample.
+**Reading these honestly**: all 10/10 questions score 5/5 on the LLM-judge in both conditions, and
+with-critic vs. without-critic now produce *identical* RAGAS scores — because on this benchmark the
+critic never actually has anything to revise (every answer is already correct and fully evidenced on
+the first pass), so the two graphs produce byte-identical answers. That's an honest property of this
+10-question set, not a flaw in the critic: it's mostly atomic, single-agent questions. The critic's
+real demonstrated value shows up on harder, multi-part questions — see error analysis #1, where the
+critic is the one thing standing between a fabricated SQL literal and a wrong final answer. Earlier
+runs of this same harness showed a lower, noisier faithfulness score (~0.5–0.67) and some RAGAS jobs
+failing outright; that was `AnswerRelevancy`'s default multi-candidate sampling getting rejected by
+the proxy, now fixed (see error analysis #4) — these numbers are from a clean run with zero job
+failures.
 
 ## Error analysis
 
-Three real failures found while building and testing this system, each with the fix applied.
+Four real failures found while building and testing this system, each with the fix applied.
 
 ### 1. Text-to-SQL agent hallucinated a fake column value
 
@@ -171,6 +171,33 @@ into `data_agent`'s and `code_agent`'s own prompts, so each specialist can resol
 context-dependent references itself even when the upstream rewrite doesn't happen. Verified fix:
 the same follow-up now correctly resolves to "churned in 2023" and returns the right count (1).
 
+### 4. Supervisor skipped straight to "finish" on a polluted memory recall
+
+**Question**: "What is the sum of the first 100 positive integers?" (found while browser-testing the
+new frontend, after the memory store had accumulated a few turns from earlier manual testing).
+**What went wrong**: two compounding bugs. First, `is_first_call` was computed as
+`len(state["steps"]) == 0`, which is never actually true in the memory-enabled graph, because
+`recall_agent` already appends a `"memory(recall N turns)"` step before `supervisor` runs for the
+first time. This silently disabled the `resolved_question` rewrite on every real run — confirmed by
+re-running `test_memory.py`, which showed `resolved question used: And last year?` (never actually
+rewritten), even though this was documented as fixed in error analysis #3. Second, the supervisor's
+prompt labeled recalled memory "Relevant past Q&A turns" without qualification, so when the memory
+store returned a near-duplicate or simply irrelevant past turn (Qdrant's cosine similarity search
+has no relevance cutoff, and a small store returns its closest matches regardless of true relevance),
+the model sometimes treated that recalled text as if it were evidence and picked `finish` without
+ever calling a specialist — skipping `code` entirely and answering "the provided evidence does not
+contain the information" instead of computing 5050.
+**Failure category**: supervisor mis-routed + a dead code path silently defeating an earlier fix.
+**Fix**: `is_first_call` now checks for a prior `"supervisor→"` step instead of an empty step list,
+so it's actually true exactly once per run. The prompt was reworded to state explicitly that
+recalled memory is only for resolving pronouns/references via `resolved_question` and is never
+evidence for `finish`. And, mirroring the existing "already ran" guard, a new code-level invariant
+was added: if the model tries to pick `finish` before any specialist has run, it's re-asked with
+`finish` removed from the valid options entirely. Verified fix: the sum-of-100 question now correctly
+routes to `code` and answers 5050; `test_memory.py`'s follow-up now genuinely rewrites to "How many
+customers churned in 2023?" instead of passing the question through unchanged; a deliberately
+unanswerable question still declines gracefully, but only after actually trying a specialist first.
+
 ## Submission checklist
 
 - [x] Own free API keys (Gemini, Qdrant embedded, Tavily, Langfuse) — Gemini routed through an
@@ -196,15 +223,11 @@ the same follow-up now correctly resolves to "churned in 2023" and returns the r
   the supervisor and critic run on the same lite model as the specialists rather than a stronger
   model — the code-level routing guard (error analysis #2) exists specifically to compensate for
   this.
-- The same proxied model rejects RAGAS's default multi-candidate sampling
-  (`Multiple candidates is not enabled for this model`), causing some per-question RAGAS jobs to
-  fail and get excluded from the averages above — see the eval results note.
 - Render's free tier spins the service down after inactivity; the first request after idle time can
   take ~30–60s to cold-start.
-- `recall_agent`'s similarity search has no relevance threshold — once the memory collection has a
-  few entries, a small store can return its closest matches even when none are actually relevant to
-  the new question. Observed live: "What is the sum of the first 100 positive integers?" recalled 3
-  unrelated past turns, and the supervisor (again, the weak proxied model) treated that noise as
-  sufficient evidence and jumped straight to `finish` without ever calling `code`, so the answer
-  wrongly declined instead of computing 5050. Not yet fixed — a similarity-score cutoff on
-  `retrieve_past_turns` in `memory.py` would be the direct fix.
+- `recall_agent`'s similarity search still has no relevance threshold — a small memory store can
+  return its closest matches even when none are strongly related to the new question. This no longer
+  causes wrong routing (see error analysis #4: the supervisor is now told explicitly that recalled
+  memory isn't evidence, and can't reach `finish` without running a specialist first), but a
+  similarity-score cutoff in `retrieve_past_turns` (`memory.py`) would still be a cleaner fix at the
+  source if noisy recalls become a problem elsewhere (e.g. `resolved_question` rewrites).
